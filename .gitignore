@@ -1,5 +1,9 @@
 # Ignore folder
-/.vscode
+*/.vscode
+
+# VSCode
+*.json
+*.ipch
 
 # Prerequisites
 *.d

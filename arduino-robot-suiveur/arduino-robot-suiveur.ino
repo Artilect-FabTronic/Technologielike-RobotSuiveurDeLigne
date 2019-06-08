@@ -5,8 +5,12 @@
   by ArnauldDev and jfcolombel
   for https://disciplines.ac-toulouse.fr/sii/concours-roboteck
 
-  TODO: Add potentiometer for adjust max speed
+  TODO: Add potentiometer for adjust motorLeftSpeedAdjustPin
 */
+/* General_Motor_speed */
+//int valspeedPotentiometre = 0; // Initialise la variable qui va recueillir la valeur du potentiomètre
+const int generalmotorSpeedAdjustPin = A2; // read potentiometre analog for General_Motor_speed adjust for left and right motors
+int turn_speed_motor = 0;
 
 /* Robot starter cord */
 const int sensorStarterPin = A1; // cordon de démarrage du robot
@@ -15,7 +19,7 @@ const int sensorStarterPin = A1; // cordon de démarrage du robot
 const int sensorStopPin = 8; // capteur de fin de course
 
 /* Infrared line sensor */
-const int lineSensorLeftPin = 4;  // Left
+const int lineSensorLeftPin = 2;  // Left
 const int lineSensorRightPin = 5; // Right
 
 /* Direction Motor */
@@ -25,7 +29,7 @@ const int lineSensorRightPin = 5; // Right
 /* Left Motor */
 const int motorLeftAIN1Pin = 6;         // PWM
 const int motorLeftAIN2Pin = 7;         // direction
-const int motorLeftSpeedAdjustPin = A0; // read potentiometre analog for motor speed adjust
+const int motorTurnSpeedAdjustPin = A0; // read potentiometre analog for motor speed adjust to max turn speed
 
 /* Right Motor */
 const int motorRightBIN1Pin = 3; // PWM
@@ -39,6 +43,18 @@ void stopMotorLeft(); // Frein moteur
 void freeMotorRight();
 void MotorRight(uint8_t motor_dir, uint8_t motor_speed);
 void stopMotorRight(); // Frein moteur
+
+/* Function prototype for Robot */
+bool robotIsOnTheLeftOfLine();       // le robot est à gauche de la ligne
+bool robotIsOnTheRightOfLine();      // le robot est à droite de la ligne
+void robotGoStraight(uint8_t speed); // faire aller le robot tout droit
+void robotStop();                    // mettre à l'arret le robot
+void robotTurnLeft(uint8_t speed);   // Turn Robot to the left direction
+void robotTurnRight(uint8_t speed);  // Turn Robot to the right direction
+
+/* Function prototype for temporisation */
+void tempoLoading(unsigned long duration);
+void tempoTask();
 
 /** Arduino section **********************************************************/
 void setup()
@@ -63,27 +79,35 @@ void setup()
 
 void loop()
 {
-  uint8_t motor_speed = 70;
+  /* generalmotorSpeedAdjust */
+  int motor_speed = analogRead(generalmotorSpeedAdjustPin); // reads the value of the potentiometer (value between 0 and 1023)
+  motor_speed = map(motor_speed, 0, 1023, 0, 255);          // scale it to use it with the servo (value between 0 and 180)
+
+  /* Difference motorSpeedAdjust in order to go straight */
+  turn_speed_motor = analogRead(motorTurnSpeedAdjustPin);    // reads the value of the potentiometer (value between 0 and 1023)
+  turn_speed_motor = map(turn_speed_motor, 0, 1023, 0, 100); // scale it to use it with the servo (value between 0 and 180)
 
   /* At startup the robot is placed in the center of the line => Go straight */
   robotGoStraight(motor_speed);
 
   /**
-   * Line tracking, direction correction, correction of the direction
-   * If the sensor on the left detects the line then it is that the robot is slightly to the right.
-   * If the right sensor detects the line then it is that the robot slightly to the left.
-   */
+     Line tracking, direction correction, correction of the direction
+     If the sensor on the left detects the line then it is that the robot is slightly to the right.
+     If the right sensor detects the line then it is that the robot slightly to the left.
+  */
   // Suivi de ligne, correction de la direction
   // Si le capteur de gauche détecte la ligne alors c'est que le robot par légérement vers la droite.
   // Si le capteur de droite détecte la ligne alors c'est que le robot par légérement vers la gauche.
   if (robotIsOnTheRightOfLine())
   {
     robotTurnLeft(motor_speed);
+    delay(100);
   }
 
   if (robotIsOnTheLeftOfLine())
   {
     robotTurnRight(motor_speed);
+    delay(100);
   }
 
   /* End of the race */
@@ -96,8 +120,36 @@ void loop()
       /* Do nothing forever */
     }
   }
+}
 
-  delay(10);
+/** Tempo section **********************************************************/
+
+// Chargement d'une temporisation
+void tempoLoading(unsigned long duration) {
+}
+
+void tempoTask() {
+  // here is where you'd put code that needs to be running all the time.
+
+  // check to see if it's time to blink the LED; that is, if the difference
+  // between the current time and last time you blinked the LED is bigger than
+  // the interval at which you want to blink the LED.
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+
+    // if the LED is off turn it on and vice-versa:
+    if (ledState == LOW) {
+      ledState = HIGH;
+    } else {
+      ledState = LOW;
+    }
+
+    // set the LED with the ledState of the variable:
+    digitalWrite(ledPin, ledState);
+  }
 }
 
 /** Robot section **********************************************************/
@@ -122,21 +174,29 @@ void robotStop()
 void robotTurnLeft(uint8_t speed)
 {
   uint8_t left_speed;
- 
-  if (speed > 50)
+
+  //if (speed > 50)
+  // {
+  // left_speed = speed - 50; // FIXME: Adjust
+  //}
+  //else
+  //{
+  //  if (speed > 25)
+  //  {
+  //    left_speed = speed - 25; // FIXME: Adjust
+  //  }
+  //  else
+  //  {
+  //    left_speed = 0; // FIXME: Adjust
+  //  }
+
+  if (speed > turn_speed_motor)
   {
-    left_speed = speed - 50; // FIXME: Adjust
+    left_speed = speed - turn_speed_motor;
   }
   else
   {
-    if (speed > 25)
-    {
-      left_speed = speed - 25; // FIXME: Adjust
-    }
-    else
-    {
-      left_speed = 0; // FIXME: Adjust
-    }
+    left_speed = speed * (1 - turn_speed_motor / 100);
   }
 
   MotorLeft(FORWARD, left_speed);
@@ -148,20 +208,29 @@ void robotTurnRight(uint8_t speed)
 {
   uint8_t right_speed;
 
-  if (speed > 50)
+  //if (speed > 50)
+  //{
+  //  right_speed = speed - 50; // FIXME: Adjust
+  //}
+  //else
+  //{
+  //  if (speed > 25)
+  //  {
+  //    right_speed = speed - 25; // FIXME: Adjust
+  //  }
+  //  else
+  //  {
+  //    right_speed = 0; // FIXME: Adjust
+  //  }
+  //}
+
+  if (speed > turn_speed_motor)
   {
-    right_speed = speed - 50; // FIXME: Adjust
+    right_speed = speed - turn_speed_motor;
   }
   else
   {
-    if (speed > 25)
-    {
-      right_speed = speed - 25; // FIXME: Adjust
-    }
-    else
-    {
-      right_speed = 0; // FIXME: Adjust
-    }
+    right_speed = speed * (1 - turn_speed_motor / 100);
   }
 
   MotorLeft(FORWARD, right_speed);
@@ -236,7 +305,7 @@ uint8_t adjustMotorSpeedLeft(uint8_t motor_speed)
 {
   uint8_t ret_speed = 0;
 
-  // TODO: 
+  // TODO:
 
   return ret_speed;
 }
