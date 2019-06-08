@@ -205,10 +205,12 @@ void tempoTask()
 void robotGoStraight(uint8_t speed)
 {
   uint8_t left_speed;
+  uint8_t right_speed;
 
-  left_speed = speed * (1 - go_straight_speed_motor / 100);
+  left_speed = speed; // speed * (1 - go_straight_speed_motor / 100);
+  right_speed = speed * (1 - go_straight_speed_motor / 100);
   MotorLeft(FORWARD, left_speed);
-  MotorRight(FORWARD, speed);
+  MotorRight(FORWARD, right_speed);
 }
 
 void robotStop()
