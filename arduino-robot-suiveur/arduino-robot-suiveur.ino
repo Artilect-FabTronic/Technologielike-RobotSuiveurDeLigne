@@ -7,13 +7,32 @@
 
   TODO: Add potentiometer for adjust motorLeftSpeedAdjustPin
 */
+
+/* At startup the robot is placed in the center of the line => Go straight */
+
+enum robot_fsm_enum
+{
+  ROBOT_START_WAITING,
+  ROBOT_GO_STRAIGHT,
+  ROBOT_ADJUST_LEFT,
+  ROBOT_ADJUST_RIGHT,
+  ROBOT_STOP
+};
+
+robot_fsm_enum fsm_robot_state = ROBOT_START_WAITING;
+
 /* General_Motor_speed */
 //int valspeedPotentiometre = 0; // Initialise la variable qui va recueillir la valeur du potentiomètre
-const int generalmotorSpeedAdjustPin = A2; // read potentiometre analog for General_Motor_speed adjust for left and right motors
+const int motorTurnSpeedAdjustPin = A0;  // read potentiometre analog for motor speed adjust to max turn speed
+const int motorGoStraightAdjustPin = A1; // read potentiometre analog for General_Motor_speed adjust for left and right motors
+const int motorSpeedAdjustPin = A2;      // read potentiometre analog for General_Motor_speed adjust for left and right motors
+
 int turn_speed_motor = 0;
+int motor_speed = 0;
+int go_straight_speed_motor = 0;
 
 /* Robot starter cord */
-const int sensorStarterPin = A1; // cordon de démarrage du robot
+const int sensorStarterPin = A5; // cordon de démarrage du robot
 
 /* Robot stop at the end of course */
 const int sensorStopPin = 8; // capteur de fin de course
@@ -27,9 +46,8 @@ const int lineSensorRightPin = 5; // Right
 #define BACKWARD 0
 
 /* Left Motor */
-const int motorLeftAIN1Pin = 6;         // PWM
-const int motorLeftAIN2Pin = 7;         // direction
-const int motorTurnSpeedAdjustPin = A0; // read potentiometre analog for motor speed adjust to max turn speed
+const int motorLeftAIN1Pin = 6; // PWM
+const int motorLeftAIN2Pin = 7; // direction
 
 /* Right Motor */
 const int motorRightBIN1Pin = 3; // PWM
@@ -45,6 +63,7 @@ void MotorRight(uint8_t motor_dir, uint8_t motor_speed);
 void stopMotorRight(); // Frein moteur
 
 /* Function prototype for Robot */
+bool robotIsOnTheCenterOfLine();     // le robot est au centre de la ligne
 bool robotIsOnTheLeftOfLine();       // le robot est à gauche de la ligne
 bool robotIsOnTheRightOfLine();      // le robot est à droite de la ligne
 void robotGoStraight(uint8_t speed); // faire aller le robot tout droit
@@ -69,26 +88,86 @@ void setup()
 
   // initialize serial communication at 9600 bits per second:
   Serial.begin(9600);
-
-  /* Starting here after pull the string */
-  while (digitalRead(sensorStarterPin) == 0)
-  {
-    /* Do nothing until... */
-  }
 }
 
 void loop()
 {
-  /* generalmotorSpeedAdjust */
-  int motor_speed = analogRead(generalmotorSpeedAdjustPin); // reads the value of the potentiometer (value between 0 and 1023)
-  motor_speed = map(motor_speed, 0, 1023, 0, 255);          // scale it to use it with the servo (value between 0 and 180)
+  /* Adjust general speed motor */
+  motor_speed = analogRead(motorSpeedAdjustPin);   // reads the value of the potentiometer (value between 0 and 1023)
+  motor_speed = map(motor_speed, 0, 1023, 0, 255); // scale it to use it with the servo (value between 0 and 180)
 
   /* Difference motorSpeedAdjust in order to go straight */
+  go_straight_speed_motor = analogRead(motorGoStraightAdjustPin);          // reads the value of the potentiometer (value between 0 and 1023)
+  go_straight_speed_motor = map(go_straight_speed_motor, 0, 1023, 0, 100); // scale it to use it with the servo (value between 0 and 180)
+
+  /* Adjust turn speed */
   turn_speed_motor = analogRead(motorTurnSpeedAdjustPin);    // reads the value of the potentiometer (value between 0 and 1023)
   turn_speed_motor = map(turn_speed_motor, 0, 1023, 0, 100); // scale it to use it with the servo (value between 0 and 180)
 
-  /* At startup the robot is placed in the center of the line => Go straight */
-  robotGoStraight(motor_speed);
+  // TODO: ajouter pour plus tard un afficheur 7 segment pour indiquer l'état en cours
+  switch (fsm_robot_state)
+  {
+  case ROBOT_START_WAITING:
+    /* Waiting here until pull the string */
+    if (digitalRead(sensorStarterPin) == true)
+    {
+      fsm_robot_state = ROBOT_GO_STRAIGHT;
+    }
+    break;
+
+  case ROBOT_GO_STRAIGHT:
+    robotGoStraight(motor_speed);
+
+    if (robotIsOnTheRightOfLine())
+    {
+      fsm_robot_state = ROBOT_ADJUST_LEFT;
+    }
+
+    if (robotIsOnTheLeftOfLine())
+    {
+      fsm_robot_state = ROBOT_ADJUST_RIGHT;
+    }
+    break;
+
+  case ROBOT_ADJUST_LEFT:
+    robotTurnLeft(motor_speed);
+
+    if (robotIsOnTheCenterOfLine())
+    {
+      fsm_robot_state = ROBOT_GO_STRAIGHT;
+    }
+    break;
+
+  case ROBOT_ADJUST_RIGHT:
+    robotTurnRight(motor_speed);
+
+    if (robotIsOnTheCenterOfLine())
+    {
+      fsm_robot_state = ROBOT_GO_STRAIGHT;
+    }
+    break;
+
+  case ROBOT_STOP:
+    /* End of the race */
+    if (digitalRead(sensorStopPin) == 1)
+    {
+      robotStop();
+
+      while (true)
+      {
+        /* Do nothing forever */
+      }
+    }
+    break;
+
+  default:
+    // if nothing else matches, do the default
+    fsm_robot_state = ROBOT_START_WAITING;
+  }
+}
+
+void todo()
+{
 
   /**
      Line tracking, direction correction, correction of the direction
@@ -98,58 +177,25 @@ void loop()
   // Suivi de ligne, correction de la direction
   // Si le capteur de gauche détecte la ligne alors c'est que le robot par légérement vers la droite.
   // Si le capteur de droite détecte la ligne alors c'est que le robot par légérement vers la gauche.
-  if (robotIsOnTheRightOfLine())
-  {
-    robotTurnLeft(motor_speed);
-    delay(100);
-  }
-
-  if (robotIsOnTheLeftOfLine())
-  {
-    robotTurnRight(motor_speed);
-    delay(100);
-  }
-
-  /* End of the race */
-  if (digitalRead(sensorStopPin) == 1)
-  {
-    robotStop();
-
-    while (true)
-    {
-      /* Do nothing forever */
-    }
-  }
 }
 
 /** Tempo section **********************************************************/
 
 // Chargement d'une temporisation
-void tempoLoading(unsigned long duration) {
+void tempoLoading(unsigned long duration)
+{
 }
 
-void tempoTask() {
-  // here is where you'd put code that needs to be running all the time.
-
-  // check to see if it's time to blink the LED; that is, if the difference
-  // between the current time and last time you blinked the LED is bigger than
-  // the interval at which you want to blink the LED.
+void tempoTask()
+{
   unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis >= interval) {
-    // save the last time you blinked the LED
-    previousMillis = currentMillis;
+  // if (currentMillis - previousMillis >= interval)
+  // {
+  //   // save the last time you blinked the LED
+  //   previousMillis = currentMillis;
 
-    // if the LED is off turn it on and vice-versa:
-    if (ledState == LOW) {
-      ledState = HIGH;
-    } else {
-      ledState = LOW;
-    }
-
-    // set the LED with the ledState of the variable:
-    digitalWrite(ledPin, ledState);
-  }
+  // }
 }
 
 /** Robot section **********************************************************/
@@ -158,7 +204,10 @@ void tempoTask() {
 // faire aller le robot tout droit
 void robotGoStraight(uint8_t speed)
 {
-  MotorLeft(FORWARD, speed);
+  uint8_t left_speed;
+
+  left_speed = speed * (1 - go_straight_speed_motor / 100);
+  MotorLeft(FORWARD, left_speed);
   MotorRight(FORWARD, speed);
 }
 
@@ -175,6 +224,10 @@ void robotTurnLeft(uint8_t speed)
 {
   uint8_t left_speed;
 
+  left_speed = speed * (1 - turn_speed_motor / 100);
+  MotorLeft(FORWARD, left_speed);
+  MotorRight(FORWARD, speed);
+
   //if (speed > 50)
   // {
   // left_speed = speed - 50; // FIXME: Adjust
@@ -190,23 +243,26 @@ void robotTurnLeft(uint8_t speed)
   //    left_speed = 0; // FIXME: Adjust
   //  }
 
-  if (speed > turn_speed_motor)
-  {
-    left_speed = speed - turn_speed_motor;
-  }
-  else
-  {
-    left_speed = speed * (1 - turn_speed_motor / 100);
-  }
+  // if (speed > turn_speed_motor)
+  // {
+  //   left_speed = speed - turn_speed_motor;
+  //     left_speed = speed * (1 - turn_speed_motor / 100);
+  //     }
+  // else
+  // {
+  //   left_speed = speed * (1 - turn_speed_motor / 100);
 
-  MotorLeft(FORWARD, left_speed);
-  MotorRight(FORWARD, speed);
+  // }
 }
 
 /* Turn Robot to the right direction */
 void robotTurnRight(uint8_t speed)
 {
   uint8_t right_speed;
+
+  right_speed = speed * (1 - turn_speed_motor / 100);
+  MotorLeft(FORWARD, speed);
+  MotorRight(FORWARD, right_speed);
 
   //if (speed > 50)
   //{
@@ -224,17 +280,28 @@ void robotTurnRight(uint8_t speed)
   //  }
   //}
 
-  if (speed > turn_speed_motor)
+  // if (speed > turn_speed_motor)
+  // {
+  //   right_speed = speed - turn_speed_motor;
+  // }
+  // else
+  // {
+  //   right_speed = speed * (1 - turn_speed_motor / 100);
+  // }
+}
+
+/* The robot is on the center of the line */
+// le robot est au centre de la ligne
+bool robotIsOnTheCenterOfLine()
+{
+  bool ret_value = false;
+
+  if ((digitalRead(lineSensorLeftPin) == 1) && (digitalRead(lineSensorRightPin) == 1))
   {
-    right_speed = speed - turn_speed_motor;
-  }
-  else
-  {
-    right_speed = speed * (1 - turn_speed_motor / 100);
+    ret_value = true;
   }
 
-  MotorLeft(FORWARD, right_speed);
-  MotorRight(FORWARD, speed);
+  return ret_value;
 }
 
 /* The robot is on the left of the line */
