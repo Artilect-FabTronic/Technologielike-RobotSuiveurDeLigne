@@ -295,7 +295,12 @@ void robotTurnRight(uint8_t speed)
 {
   uint8_t right_speed;
 
-  right_speed = speed * (1 - turn_speed_motor / 100);
+  right_speed = (float)speed * (1.0 - ((float)turn_speed_motor / 100.0));
+  Serial.print("Adjust TurnRight: ");
+  Serial.print(speed);
+  Serial.print(" -> ");
+  Serial.println(right_speed);
+
   MotorLeftForward(speed);
   MotorRightForward(right_speed);
   // MotorLeft(FORWARD, speed);
