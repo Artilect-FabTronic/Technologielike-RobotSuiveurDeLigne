@@ -129,11 +129,6 @@ void loop()
     Serial.println("[ROBOT_GO_STRAIGHT]");
     robotGoStraight(motor_speed);
 
-    if (robotIsArriveAtTheEndOfRace())
-    {
-      fsm_robot_state = ROBOT_STOP;
-    }
-
     if (robotIsOnTheRightOfLine())
     {
       fsm_robot_state = ROBOT_ADJUST_LEFT;
@@ -142,6 +137,11 @@ void loop()
     if (robotIsOnTheLeftOfLine())
     {
       fsm_robot_state = ROBOT_ADJUST_RIGHT;
+    }
+
+    if (robotIsArriveAtTheEndOfRace())
+    {
+      fsm_robot_state = ROBOT_STOP;
     }
     break;
 
@@ -152,6 +152,11 @@ void loop()
     if (robotIsOnTheCenterOfLine())
     {
       fsm_robot_state = ROBOT_GO_STRAIGHT;
+    }
+
+    if (robotIsOnTheLeftOfLine())
+    {
+      fsm_robot_state = ROBOT_ADJUST_RIGHT;
     }
 
     if (robotIsArriveAtTheEndOfRace())
@@ -167,6 +172,11 @@ void loop()
     if (robotIsOnTheCenterOfLine())
     {
       fsm_robot_state = ROBOT_GO_STRAIGHT;
+    }
+
+    if (robotIsOnTheRightOfLine())
+    {
+      fsm_robot_state = ROBOT_ADJUST_LEFT;
     }
 
     if (robotIsArriveAtTheEndOfRace())
