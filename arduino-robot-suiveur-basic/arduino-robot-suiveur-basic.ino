@@ -15,7 +15,10 @@
 */
 
 /* At startup the robot is placed in the center of the line => Go straight */
-const int motorSpeedAdjustPin = A0;      // read potentiometre analog for General_Motor_speed adjust for left and right motors
+const int motorSpeedAdjustPin = A0; // read potentiometre analog for General_Motor_speed adjust for left and right motors
+
+/* LED indicate robot is ready to start */
+const int robotLedStatusPin = 13; // LED
 
 /* Robot stop at the end of course */
 const int sensorStopPin = 8; // capteur de fin de course
@@ -68,56 +71,69 @@ void setup()
   pinMode(sensorStopPin, INPUT_PULLUP);
 
   // initialize digital pin as an output.
+  pinMode(robotLedStatusPin, OUTPUT);
+  // moteur gauche
+  pinMode(motorLeftAIN1Pin, OUTPUT);
   pinMode(motorLeftAIN2Pin, OUTPUT);
+  // moteur droit
+  pinMode(motorRightBIN1Pin, OUTPUT);
   pinMode(motorRightBIN2Pin, OUTPUT);
+
   digitalWrite(motorLeftAIN2Pin, LOW);  // turn the LED off by making the voltage LOW
   digitalWrite(motorRightBIN2Pin, LOW); // turn the LED off by making the voltage LOW
 
   robotStop();
   Serial.println("ROBOT_START_WAITING...");
+  digitalWrite(robotLedStatusPin, HIGH);
   delay(5000);
-  
-//  while ((digitalRead(lineSensorLeftPin) == 0) && (digitalRead(lineSensorRightPin) == 0))
-  while (robotIsOnTheLeftOfLine() || robotIsOnTheRightOfLine())
+  digitalWrite(robotLedStatusPin, LOW);
+
+  while ((digitalRead(lineSensorLeftPin) == 0) && (digitalRead(lineSensorRightPin) == 0))
   {
-    /* attendre que l'on soit sur la position de départ sur la ligne droite */
+    robotGoStraight(100);
   }
 }
 
 void loop()
 {
   /* Adjust general speed motor */
-  motor_speed = analogRead(motorSpeedAdjustPin);  // read potentiometre analog for motor speed adjust to max turn speed
-  motor_speed = 50 + map(motor_speed, 0, 1023, 0, 205); // scale it to use it with the servo (value between 0 and 255)
-  Serial.print("motor_speed: "); // 121 est le max sinon ont sortie de la piste
+  motor_speed = analogRead(motorSpeedAdjustPin);        // read potentiometre analog for motor speed adjust to max turn speed
+  motor_speed = 70 + map(motor_speed, 0, 1023, 0, 185); // scale it to use it with the PWM (value between 0 and 255), limite du couple d'adhésion
+  Serial.print("motor_speed: ");                        // 121 est le max sinon ont sortie de la piste
   Serial.println(motor_speed);
 
   /* Aller tout droit */
-  if (robotIsOnTheCenterOfLine()) {
+  if (robotIsOnTheCenterOfLine())
+  {
     Serial.println("ROBOT_GO_STRAIGHT");
     //robotGoStraight(motor_speed);
-    MotorLeftForward(motor_speed-25);
-    MotorRightForward(motor_speed-25);
+    MotorLeftForward(motor_speed - 5); // -25 est ok
+    MotorRightForward(motor_speed - 5);
   }
 
   /* Tourner à droite */
-  if (robotIsOnTheLeftOfLine()) {
+  if (robotIsOnTheLeftOfLine())
+  {
     stopMotorLeft();
+    //freeMotorLeft();
     Serial.println("ROBOT_TURN_RIGHT");
     //delay(50);
     MotorRightForward(motor_speed);
   }
 
   /* Tourner à gauche */
-  if (robotIsOnTheRightOfLine()) {
+  if (robotIsOnTheRightOfLine())
+  {
     stopMotorRight();
+    //freeMotorRight();
     Serial.println("ROBOT_TURN_LEFT");
     //delay(50);
     MotorLeftForward(motor_speed);
   }
 
   /* Arreter le robot */
-  if (robotIsArriveAtTheEndOfRace()) {
+  if (robotIsArriveAtTheEndOfRace())
+  {
     robotStop();
     Serial.println("ROBOT_STOP");
     delay(10000);
@@ -136,8 +152,8 @@ void robotGoStraight(uint8_t speed)
 
 void robotStop()
 {
-//  MotorLeftForward(0);
-//  MotorRightForward(0);
+  //  MotorLeftForward(0);
+  //  MotorRightForward(0);
   freeMotorLeft();
   freeMotorRight();
 }
