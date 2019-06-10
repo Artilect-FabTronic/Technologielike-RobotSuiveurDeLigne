@@ -135,6 +135,9 @@ void loop()
   if (robotIsArriveAtTheEndOfRace())
   {
     robotStop();
+    // sinon ok
+    //stopMotorLeft();
+    //stopMotorRight();
     Serial.println("ROBOT_STOP");
     delay(10000);
   }
@@ -152,8 +155,8 @@ void robotGoStraight(uint8_t speed)
 
 void robotStop()
 {
-  //  MotorLeftForward(0);
-  //  MotorRightForward(0);
+  MotorLeftForward(0);
+  MotorRightForward(0);
   freeMotorLeft();
   freeMotorRight();
 }
