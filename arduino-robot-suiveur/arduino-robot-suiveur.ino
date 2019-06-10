@@ -19,6 +19,7 @@
 enum robot_fsm_enum
 {
   ROBOT_START_WAITING,
+  ROBOT_ACCELERATION,
   ROBOT_GO_STRAIGHT,
   ROBOT_ADJUST_LEFT,
   ROBOT_ADJUST_RIGHT,
@@ -91,6 +92,7 @@ void setup()
   Serial.begin(9600);
 
   pinMode(sensorStarterPin, INPUT_PULLUP); // https://www.locoduino.org/spip.php?article122
+  pinMode(sensorStopPin, INPUT_PULLUP);
 
   // initialize digital pin as an output.
   pinMode(motorLeftAIN2Pin, OUTPUT);
@@ -102,8 +104,8 @@ void setup()
 void loop()
 {
   /* Adjust general speed motor */
-  motor_speed = analogRead(motorSpeedAdjustPin);   // reads the value of the potentiometer (value between 0 and 1023)
-  motor_speed = map(motor_speed, 0, 1023, 0, 255); // scale it to use it with the servo (value between 0 and 255)
+  motor_speed = analogRead(motorSpeedAdjustPin);        // reads the value of the potentiometer (value between 0 and 1023)
+  motor_speed = 30 + map(motor_speed, 0, 1023, 0, 225); // scale it to use it with the servo (value between 0 and 255)
 
   /* Difference motorSpeedAdjust in order to go straight */
   go_straight_speed_motor = analogRead(motorGoStraightAdjustPin);          // reads the value of the potentiometer (value between 0 and 1023)
@@ -119,15 +121,33 @@ void loop()
   case ROBOT_START_WAITING:
     Serial.println("[ROBOT_START_WAITING]");
     /* Waiting here until pull the string */
+    robotStop();
     if (digitalRead(sensorStarterPin) == true)
     {
-      fsm_robot_state = ROBOT_GO_STRAIGHT;
+      fsm_robot_state = ROBOT_ACCELERATION;
     }
+    break;
+
+  case ROBOT_ACCELERATION:
+    // Acceleration
+    for (int acc = 50; acc <= motor_speed; acc++)
+    {
+      Serial.println("[ROBOT_ACCELERATION]");
+      robotGoStraight(acc);
+      delay(40); // delay pour avoir un progression
+    }
+    fsm_robot_state = ROBOT_GO_STRAIGHT;
     break;
 
   case ROBOT_GO_STRAIGHT:
     Serial.println("[ROBOT_GO_STRAIGHT]");
     robotGoStraight(motor_speed);
+
+    if (robotIsArriveAtTheEndOfRace())
+    {
+      fsm_robot_state = ROBOT_STOP;
+      break;
+    }
 
     if (robotIsOnTheRightOfLine())
     {
@@ -137,11 +157,6 @@ void loop()
     if (robotIsOnTheLeftOfLine())
     {
       fsm_robot_state = ROBOT_ADJUST_RIGHT;
-    }
-
-    if (robotIsArriveAtTheEndOfRace())
-    {
-      fsm_robot_state = ROBOT_STOP;
     }
     break;
 
@@ -149,6 +164,12 @@ void loop()
     Serial.println("[ROBOT_ADJUST_LEFT]");
     robotTurnLeft(motor_speed);
 
+    if (robotIsArriveAtTheEndOfRace())
+    {
+      fsm_robot_state = ROBOT_STOP;
+      break;
+    }
+
     if (robotIsOnTheCenterOfLine())
     {
       fsm_robot_state = ROBOT_GO_STRAIGHT;
@@ -158,16 +179,17 @@ void loop()
     {
       fsm_robot_state = ROBOT_ADJUST_RIGHT;
     }
-
-    if (robotIsArriveAtTheEndOfRace())
-    {
-      fsm_robot_state = ROBOT_STOP;
-    }
     break;
 
   case ROBOT_ADJUST_RIGHT:
     Serial.println("[ROBOT_ADJUST_RIGHT]");
     robotTurnRight(motor_speed);
+
+    if (robotIsArriveAtTheEndOfRace())
+    {
+      fsm_robot_state = ROBOT_STOP;
+      break;
+    }
 
     if (robotIsOnTheCenterOfLine())
     {
@@ -177,11 +199,6 @@ void loop()
     if (robotIsOnTheRightOfLine())
     {
       fsm_robot_state = ROBOT_ADJUST_LEFT;
-    }
-
-    if (robotIsArriveAtTheEndOfRace())
-    {
-      fsm_robot_state = ROBOT_STOP;
     }
     break;
 
