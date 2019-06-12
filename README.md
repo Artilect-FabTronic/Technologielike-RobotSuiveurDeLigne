@@ -1,5 +1,13 @@
 # Technologielike-RobotSuiveurDeLigne
 
-Projet de robot suiveur de ligne
+Projet de robots suiveur de ligne
 
-## MatÃ©riels nÃ©cessaire pour la construction du robot
+![Nos Robots finis](images/20190611_232956.jpg)
+
+## Matériels nécessaire pour la construction du robot
+
+...
+
+## Liens divers
+
+* [Comment construire un robot chez soi](https://fr.wikihow.com/construire-un-robot-chez-soi)
